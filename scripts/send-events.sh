@@ -4,7 +4,7 @@
 
 echo "Sending 100 transactions to PayStreamInput..."
 
-for i in $(seq 1 100); do
+for i in $(seq 1 1000); do
   # Generate Transaction ID (e.g., tr_001)
   TRANSACTION_ID=$(printf 'tr_%03d' $i)
   

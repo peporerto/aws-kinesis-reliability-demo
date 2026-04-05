@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
 import { PaystreamPipelineStack } from '../lib/paystream-pipeline-stack';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 
 const app = new cdk.App();
 new PaystreamPipelineStack(app, 'PaystreamPipelineStack', {
