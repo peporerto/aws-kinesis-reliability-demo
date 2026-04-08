@@ -1,16 +1,16 @@
 {
-    "name": "processor",
+    "name": "generator",
     "version": "1.0.0",
     "scripts": {
         "build": "tsc"
     },
     "dependencies": {
-        "@aws-sdk/client-dynamodb": "^3.0.0",
-        "ulid": "^3.0.2"
+        "@aws-sdk/client-kinesis": "^3.0.0",
+        "ulid": "^2.3.0"
     },
     "devDependencies": {
+        "typescript": "~5.9.3",
         "@types/aws-lambda": "^8.10.0",
-        "@types/node": "^24.0.0",
-        "typescript": "~5.9.3"
+        "@types/node": "^24.0.0"
     }
 }

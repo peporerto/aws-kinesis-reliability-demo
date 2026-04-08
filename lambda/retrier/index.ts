@@ -22,7 +22,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
                 || body.data;
 
             if (!kinesisData) {
-                console.error('No kinesis data found in body:', JSON.stringify(body, null, 2));
+                console.error('No kinesis data found:', JSON.stringify(body, null, 2));
                 continue;
             }
 
@@ -34,7 +34,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
             }
 
         } catch (e: any) {
-            console.error('Error decoding payload:', e.message, JSON.stringify(body));
+            console.error('Error decoding payload:', e.message);
             continue;
         }
 
@@ -49,6 +49,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
                     TableName: process.env.TABLE_NAME!,
                     Item: {
                         transactionId: { S: payload.id },
+                        entityType: { S: 'TRANSACTION' },
                         amount: { N: String(payload.amount) },
                         currency: { S: payload.currency },
                         processedAt: { S: new Date().toISOString() },
@@ -57,7 +58,7 @@ export const handler = async (event: SQSEvent): Promise<void> => {
                     ConditionExpression: 'attribute_not_exists(transactionId)',
                 }));
 
-                console.log(`Transaction ${payload.id} saved on attempt ${attempt + 1}`);
+                console.log(` Transaction ${payload.id} saved on attempt ${attempt + 1}`);
                 break;
 
             } catch (err: any) {
@@ -68,12 +69,12 @@ export const handler = async (event: SQSEvent): Promise<void> => {
 
                 attempt++;
                 if (attempt >= maxAttempts) {
-                    console.error(`Final failure for ${payload.id} after ${maxAttempts} attempts`);
+                    console.error(` Final failure for ${payload.id} after ${maxAttempts} attempts`);
                     break;
                 }
 
                 const waitMs = Math.pow(2, attempt) * 1000;
-                console.log(`Attempt ${attempt} failed. Retrying in ${waitMs}ms...`);
+                console.log(` Attempt ${attempt} failed. Retrying in ${waitMs}ms...`);
                 await sleep(waitMs);
             }
         }
