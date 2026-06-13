@@ -1,0 +1,114 @@
+name: ADR Governance Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  adr-review:
+    name: Architecture Decision Review
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write # needed to post PR comments
+      contents: read
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history needed for diff
+
+      # ── 2. Python setup ──────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install litellm requests
+
+      # ── 3. Init check — precondition sensor ──────────────────────────────────
+      - name: Run harness init check
+        env:
+          REVIEW_MODEL: ${{ secrets.REVIEW_MODEL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python .github/scripts/init_check.py
+
+      # ── 4. Generate diff ─────────────────────────────────────────────────────
+      - name: Generate PR diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD \
+            -- '*.ts' '*.js' '*.json' '*.sh' \
+            > /tmp/pr.diff
+          echo "Diff size: $(wc -c < /tmp/pr.diff) bytes"
+          echo "Lines changed: $(wc -l < /tmp/pr.diff)"
+
+      # ── 5. Run ADR reviewer (single LLM call) ────────────────────────────────
+      - name: Run ADR reviewer
+        id: adr_review
+        env:
+          REVIEW_MODEL: ${{ secrets.REVIEW_MODEL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python .github/scripts/adr_reviewer.py \
+            --diff /tmp/pr.diff \
+            --output /tmp/adr_report.md \
+            --json-output /tmp/adr_report.json
+
+      # ── 6. Post comment on PR ────────────────────────────────────────────────
+      - name: Post review comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('/tmp/adr_report.md', 'utf8');
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            for (const comment of comments.data) {
+              if (comment.body.includes('ADR Governance Agent')) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report,
+            });
+
+      # ── 7. Fail on critical violations (reads JSON, no second LLM call) ──────
+      - name: Check for critical violations
+        run: |
+          python -c "
+          import json, sys
+          with open('/tmp/adr_report.json') as f:
+              data = json.load(f)
+          critical = [v for v in data.get('violations', []) if v.get('severity') == 'critical']
+          if critical:
+              print(f'FAILED: {len(critical)} critical ADR violation(s) must be fixed before merge.')
+              sys.exit(1)
+          print('PASSED: No critical violations.')
+          "
