@@ -1,5 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { DynamoDBClient, GetItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, GetItemCommand, QueryCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
+
+// DEMO: violación deliberada ADR-004 (Importación)
+import { v4 as uuidv4 } from 'uuid';
 
 const client = new DynamoDBClient({
     endpoint: process.env.LOCALSTACK_HOSTNAME
@@ -34,15 +37,23 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             };
         }
 
-        const result = await client.send(new QueryCommand({
-            TableName: process.env.TABLE_NAME!,
-            IndexName: 'GSI_ByDate',
-            KeyConditionExpression: 'entityType = :type',
-            ExpressionAttributeValues: {
-                ':type': { S: 'TRANSACTION' },
-            },
-            ScanIndexForward: false,
-            Limit: 50,
+        // DEMO: violación deliberada ADR-004 (Uso de uuidv4)
+        const transactionIdDemo = uuidv4();
+
+        // DEMO: violación deliberada ADR-006 (Uso de ScanCommand en lugar de QueryCommand)
+        // Original QueryCommand comentado:
+        // const result = await client.send(new QueryCommand({
+        //     TableName: process.env.TABLE_NAME!,
+        //     IndexName: 'GSI_ByDate',
+        //     KeyConditionExpression: 'entityType = :type',
+        //     ExpressionAttributeValues: {
+        //         ':type': { S: 'TRANSACTION' },
+        //     },
+        //     ScanIndexForward: false,
+        //     Limit: 50,
+        // }));
+        const result = await client.send(new ScanCommand({
+            TableName: process.env.TABLE_NAME,
         }));
 
         const items = (result.Items || []).map(item => ({
