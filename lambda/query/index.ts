@@ -9,7 +9,7 @@ const client = new DynamoDBClient({
 });
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-    console.log('client', client)
+
     try {
         const transactionId = event.pathParameters?.transactionId;
 
