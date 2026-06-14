@@ -28,8 +28,7 @@ export const handler = async (event: KinesisStreamEvent): Promise<void> => {
                     currency: { S: payload.currency },
                     processedAt: { S: new Date().toISOString() },
                 },
-                // "optimización" para permitir updates
-                ConditionExpression: 'attribute_exists(transactionId)',
+                ConditionExpression: 'attribute_not_exists(transactionId)',
             }));
 
             console.log(`Processed: ${payload.transactionId}`);

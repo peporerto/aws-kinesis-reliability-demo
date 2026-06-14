@@ -99,15 +99,26 @@ The reviewer detects concrete violations — not style issues, not suggestions. 
 + const transactionId = ulid();
 ```
 
+### Reviewer in action
+
+Three scenarios tested and verified:
+
+| Scenario | Code change | Result |
+|----------|-------------|--------|
+| Obvious violation | `ScanCommand` + `uuidv4` | ❌ Merge blocked — ADR-004, ADR-006 |
+| Happy path | Clean `console.log` | ✅ Merge allowed |
+| Edge case | Inverted `ConditionExpression` | ❌ Merge blocked — ADR-003 |
+
 ### Model-agnostic by design
 
 The reviewer never hardcodes a provider. One environment variable controls the model:
 
 ```bash
-# Production
-REVIEW_MODEL=anthropic/claude-haiku-4-5
+# Current setup
+REVIEW_MODEL=groq/llama-3.3-70b-versatile
 
 # Switch providers without touching code
+REVIEW_MODEL=anthropic/claude-haiku-4-5
 REVIEW_MODEL=openai/gpt-4o-mini
 REVIEW_MODEL=google/gemini-flash-1.5
 
@@ -142,7 +153,7 @@ All significant decisions are documented with context, rationale, and tradeoffs.
 | ADR | Decision | Why it matters |
 |-----|----------|----------------|
 | [ADR-001](docs/adrs/ADR-001-event-driven-architecture.md) | Event-driven over direct DB writes | The foundational choice — everything else follows from this |
-| [ADR-002](docs/adrs/ADR-002-kinesis-over-sqs.md) | Kinesis over SQS | Ordering per merchant + event replay for compliance |
+| [ADR-002](docs/adrs/ADR-002-kinesis-over-sqs.md) | Kinesis over SQS | Per-transaction ordering + event replay for compliance |
 | [ADR-003](docs/adrs/ADR-003-dynamodb-over-relational.md) | DynamoDB over relational DB | Serverless-native, no connection pool exhaustion |
 | [ADR-004](docs/adrs/ADR-004-ulid-over-uuid.md) | ULID over UUID | Chronological sort + prevents client ID injection |
 | [ADR-005](docs/adrs/ADR-005-explicit-dlq-strategy.md) | Explicit SQS DLQ | Decoupled retry logic + observable failure path |
@@ -205,8 +216,8 @@ REVIEW_MODEL=ollama/qwen2.5-coder \
 Add these secrets in Settings → Secrets → Actions:
 
 ```
-REVIEW_MODEL      = anthropic/claude-haiku-4-5
-ANTHROPIC_API_KEY = your-key
+REVIEW_MODEL = groq/llama-3.3-70b-versatile
+GROQ_API_KEY = your-key
 ```
 
 ---
@@ -214,7 +225,7 @@ ANTHROPIC_API_KEY = your-key
 ## Project structure
 
 ```
-paystream-pipeline/
+aws-kinesis-reliability-demo/
 ├── AGENTS.md                          ← harness constitution (any agent reads this)
 ├── CLAUDE.md                          ← Claude Code conventions
 ├── docs/
